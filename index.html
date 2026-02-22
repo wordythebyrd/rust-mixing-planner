@@ -862,13 +862,6 @@
           <label>Number of batches</label>
           <input type="number" id="batchCount" placeholder="1" min="1" value="1" oninput="updateCalc()">
         </div>
-        <div class="form-group" style="width:140px;">
-          <label>Queue position</label>
-          <select id="queuePos">
-            <option value="end">End of queue</option>
-            <option value="start">Start of queue</option>
-          </select>
-        </div>
       </div>
 
       <!-- Calculation result -->
@@ -1101,7 +1094,7 @@ function addTable() {
 }
 
 function removeTable(id) {
-  if (!confirm('Remove this mixing table and all its queued crafts?')) return;
+  if (!confirm('Remove this mixing table?')) return;
   state.tables = state.tables.filter(t => t.id !== id);
   renderTables();
 }
@@ -1200,19 +1193,7 @@ function updateCalc() {
     name = document.getElementById('manualName').value || 'Item';
   }
 
-  // Figure out queue time before this craft starts
-  const table = state.tables.find(t => t.id === modalContext?.tableId);
-  const queuePos = document.getElementById('queuePos').value;
-  let queueOffset = 0;
-  if (table && queuePos === 'end') {
-    table.queue.forEach(c => {
-      const remaining = Math.max(0, c.endTime - Date.now());
-      queueOffset = Math.max(queueOffset, remaining / 1000);
-    });
-  }
-
-  const startOffset = queuePos === 'end' ? queueOffset : 0;
-  const finishAt = new Date(Date.now() + (startOffset + totalSeconds) * 1000);
+  const finishAt = new Date(Date.now() + totalSeconds * 1000);
 
   calcEl.style.display = '';
   document.getElementById('calcTime').textContent = fmtDuration(totalSeconds);
@@ -1220,7 +1201,7 @@ function updateCalc() {
 
   // Check restart conflicts
   const warnEl = document.getElementById('calcWarn');
-  const nextRestart = getNextRestartTime(new Date(Date.now() + startOffset * 1000));
+  const nextRestart = getNextRestartTime();
   if (nextRestart && finishAt > nextRestart.time) {
     const lostTime = (finishAt - nextRestart.time) / 1000;
     warnEl.style.display = '';
@@ -1263,15 +1244,7 @@ function confirmAddCraft() {
 
   const batches = Math.max(1, parseInt(document.getElementById('batchCount').value) || 1);
   const totalSeconds = baseSeconds * batches;
-  const queuePos = document.getElementById('queuePos').value;
-
-  // Calculate start time based on queue
-  let startTime;
-  if (queuePos === 'start' || table.queue.length === 0) {
-    startTime = Date.now();
-  } else {
-    startTime = Math.max(...table.queue.map(c => c.endTime));
-  }
+  const startTime = Date.now();
   const endTime = startTime + totalSeconds * 1000;
 
   const craft = {
@@ -1282,17 +1255,7 @@ function confirmAddCraft() {
     recipeId: selectedRecipeId
   };
 
-  if (queuePos === 'start') {
-    // Shift existing queue forward
-    const shift = totalSeconds * 1000;
-    table.queue.forEach(c => {
-      c.startTime += shift;
-      c.endTime += shift;
-    });
-    table.queue.unshift(craft);
-  } else {
-    table.queue.push(craft);
-  }
+  table.queue.push(craft);
 
   closeModal();
   renderTables();
@@ -1301,18 +1264,7 @@ function confirmAddCraft() {
 function removeCraft(tableId, craftId) {
   const table = state.tables.find(t => t.id === tableId);
   if (!table) return;
-  const idx = table.queue.findIndex(c => c.id === craftId);
-  if (idx === -1) return;
-  const removed = table.queue[idx];
-  table.queue.splice(idx, 1);
-  // Re-chain subsequent items
-  if (idx < table.queue.length) {
-    const shiftBack = removed.endTime - removed.startTime;
-    for (let i = idx; i < table.queue.length; i++) {
-      table.queue[i].startTime -= shiftBack;
-      table.queue[i].endTime -= shiftBack;
-    }
-  }
+  table.queue = table.queue.filter(c => c.id !== craftId);
   renderTables();
 }
 
@@ -1337,9 +1289,10 @@ function renderTables() {
 }
 
 function renderTableCard(table) {
-  const queueHtml = table.queue.length === 0
-    ? `<div class="queue-empty">Queue empty — add a craft to start cooking</div>`
-    : table.queue.map(c => renderCraftItem(table.id, c)).join('');
+  const occupied = table.queue.length > 0;
+  const queueHtml = occupied
+    ? table.queue.map(c => renderCraftItem(table.id, c)).join('')
+    : `<div class="queue-empty">Empty — add a craft to start cooking</div>`;
 
   return `<div class="table-card" id="table-${table.id}">
     <div class="corner-decor tl"></div>
@@ -1355,8 +1308,8 @@ function renderTableCard(table) {
     </div>
     <div class="table-card-body">
       <div id="queue-${table.id}">${queueHtml}</div>
-      <button class="btn btn-outline" style="width:100%;margin-top:4px;"
-        onclick="openAddCraft(${table.id})">+ ADD CRAFT</button>
+      ${!occupied ? `<button class="btn btn-outline" style="width:100%;margin-top:4px;"
+        onclick="openAddCraft(${table.id})">+ ADD CRAFT</button>` : ''}
     </div>
   </div>`;
 }
@@ -1426,7 +1379,7 @@ function renderAllQueues() {
     const queueEl = document.getElementById(`queue-${table.id}`);
     if (!queueEl) return;
     if (table.queue.length === 0) {
-      queueEl.innerHTML = `<div class="queue-empty">Queue empty — add a craft to start cooking</div>`;
+      queueEl.innerHTML = `<div class="queue-empty">Empty — add a craft to start cooking</div>`;
     } else {
       queueEl.innerHTML = table.queue.map(c => renderCraftItem(table.id, c)).join('');
     }
@@ -1570,8 +1523,6 @@ document.getElementById('addCraftModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Recalc when queue pos changes
-document.getElementById('queuePos').addEventListener('change', updateCalc);
 document.getElementById('manualSeconds').addEventListener('input', updateCalc);
 document.getElementById('manualName').addEventListener('input', updateCalc);
 document.getElementById('batchCount').addEventListener('input', updateCalc);
