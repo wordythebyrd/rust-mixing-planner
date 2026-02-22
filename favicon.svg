@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Hexagon background -->
+  <polygon points="16,2 28,9 28,23 16,30 4,23 4,9" fill="#C85A11" stroke="#E8700A" stroke-width="1.5"/>
+  <!-- Flask body -->
+  <path d="M13 8 L13 15 L9 22 Q8.5 23.5 10 24 L22 24 Q23.5 23.5 23 22 L19 15 L19 8 Z"
+        fill="#0D0C0B" stroke="#E8D8B8" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Flask neck/top bar -->
+  <rect x="12" y="7" width="8" height="1.5" rx="0.5" fill="#E8D8B8"/>
+  <!-- Liquid inside flask -->
+  <path d="M10.5 21 Q10 22.5 11 23 L21 23 Q22 22.5 21.5 21 L14.5 17 Z"
+        fill="#C85A11" opacity="0.9"/>
+  <!-- Bubbles -->
+  <circle cx="14" cy="20" r="1" fill="#E8700A" opacity="0.7"/>
+  <circle cx="17" cy="21.5" r="0.7" fill="#E8700A" opacity="0.6"/>
+</svg>
