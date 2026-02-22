@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rust — Mixing Table Planner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@400;600;700&display=swap');
+
+  :root {
+    --rust-orange: #C85A11;
+    --rust-orange-light: #E8700A;
+    --rust-red: #8B1A0A;
+    --rust-dark: #0D0C0B;
+    --rust-bg: #141210;
+    --rust-panel: #1C1A17;
+    --rust-panel2: #242018;
+    --rust-border: #3A3228;
+    --rust-border-light: #5A4A38;
+    --rust-text: #C8B89A;
+    --rust-text-dim: #7A6A56;
+    --rust-text-bright: #E8D8B8;
+    --rust-green: #4A8A2A;
+    --rust-warn: #C8A010;
+    --rust-danger: #C82010;
+    --rust-metal: #4A4040;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Share Tech Mono', monospace;
+    background-color: var(--rust-bg);
+    color: var(--rust-text);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(200,90,17,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(139,26,10,0.06) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233A3228' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: linear-gradient(180deg, #1A0800 0%, #0D0C0B 100%);
+    border-bottom: 2px solid var(--rust-orange);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 24px rgba(200,90,17,0.3);
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: var(--rust-orange);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--rust-text-bright);
+  }
+  header h1 span { color: var(--rust-orange); }
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--rust-text-dim);
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--rust-green);
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* ─── LAYOUT ─── */
+  .app-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    background: var(--rust-panel);
+    border-right: 1px solid var(--rust-border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .panel {
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+  }
+  .panel-header {
+    padding: 10px 14px;
+    background: rgba(200,90,17,0.12);
+    border-bottom: 1px solid var(--rust-border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--rust-orange);
+  }
+  .panel-header svg { width: 16px; height: 16px; }
+  .panel-body { padding: 14px; }
+
+  /* ─── SKILL LEVEL ─── */
+  .skill-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .skill-level-num {
+    font-size: 32px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: var(--rust-orange);
+  }
+  .skill-reduction {
+    text-align: right;
+    font-size: 12px;
+    color: var(--rust-text-dim);
+  }
+  .skill-reduction strong { color: var(--rust-green); font-size: 16px; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--rust-border);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 2px;
+    background: var(--rust-orange);
+    cursor: pointer;
+    border: 2px solid var(--rust-orange-light);
+    box-shadow: 0 0 8px rgba(200,90,17,0.6);
+  }
+  .skill-pips {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--rust-text-dim);
+  }
+
+  /* ─── RESTARTS ─── */
+  .restart-list { display: flex; flex-direction: column; gap: 8px; }
+  .restart-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+  }
+  .restart-dot {
+    width: 8px; height: 8px;
+    background: var(--rust-warn);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .restart-time-label {
+    flex: 1;
+    font-size: 14px;
+    color: var(--rust-text-bright);
+  }
+  .restart-countdown {
+    font-size: 11px;
+    color: var(--rust-text-dim);
+  }
+  .btn-remove {
+    background: none;
+    border: none;
+    color: var(--rust-text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.2s;
+  }
+  .btn-remove:hover { color: var(--rust-danger); }
+
+  .add-restart {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  input[type=time], input[type=text], input[type=number], select {
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    color: var(--rust-text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    outline: none;
+    width: 100%;
+  }
+  input[type=time]:focus, input[type=text]:focus,
+  input[type=number]:focus, select:focus {
+    border-color: var(--rust-orange);
+    box-shadow: 0 0 0 1px rgba(200,90,17,0.3);
+  }
+  select option { background: var(--rust-panel2); }
+
+  .btn {
+    background: var(--rust-orange);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn:hover {
+    background: var(--rust-orange-light);
+    box-shadow: 0 0 12px rgba(200,90,17,0.5);
+  }
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--rust-border-light);
+    color: var(--rust-text);
+  }
+  .btn-outline:hover {
+    background: var(--rust-panel2);
+    border-color: var(--rust-orange);
+    color: var(--rust-orange);
+    box-shadow: none;
+  }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--rust-danger);
+    color: var(--rust-danger);
+  }
+  .btn-danger:hover { background: rgba(200,32,16,0.15); box-shadow: none; }
+
+  /* ─── MAIN AREA ─── */
+  .main {
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .main-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .main-toolbar h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--rust-text-dim);
+  }
+
+  .tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  /* ─── MIXING TABLE CARD ─── */
+  .table-card {
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .table-card-header {
+    background: linear-gradient(90deg, rgba(200,90,17,0.15) 0%, transparent 100%);
+    border-bottom: 1px solid var(--rust-border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .table-icon {
+    width: 32px; height: 32px;
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border-light);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .table-name-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--rust-text-bright);
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    font-weight: 600;
+    padding: 2px 0;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .table-name-input:hover, .table-name-input:focus {
+    border-bottom-color: var(--rust-border-light);
+  }
+  .table-card-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+  /* ─── QUEUE ─── */
+  .queue-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--rust-text-dim);
+    font-size: 12px;
+    border: 1px dashed var(--rust-border);
+    border-radius: 2px;
+  }
+
+  .queue-item {
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .queue-item.warning { border-color: var(--rust-warn); }
+  .queue-item.danger { border-color: var(--rust-danger); animation: blink-border 2s infinite; }
+  @keyframes blink-border {
+    0%,100% { border-color: var(--rust-danger); }
+    50% { border-color: rgba(200,32,16,0.3); }
+  }
+
+  .queue-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .qi-img {
+    width: 36px; height: 36px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .qi-img-placeholder {
+    width: 36px; height: 36px;
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .qi-info { flex: 1; min-width: 0; }
+  .qi-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--rust-text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .qi-meta { font-size: 11px; color: var(--rust-text-dim); }
+  .qi-timer {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .qi-countdown {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--rust-orange);
+    line-height: 1;
+  }
+  .qi-countdown.done { color: var(--rust-green); }
+  .qi-countdown.critical { color: var(--rust-danger); }
+  .qi-finish { font-size: 10px; color: var(--rust-text-dim); margin-top: 2px; }
+
+  .progress-track {
+    height: 4px;
+    background: var(--rust-border);
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--rust-orange);
+    transition: width 1s linear;
+  }
+  .progress-fill.done { background: var(--rust-green); }
+  .progress-fill.critical { background: var(--rust-danger); }
+
+  .qi-inputs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--rust-border);
+  }
+  .qi-input-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: var(--rust-text-dim);
+  }
+  .qi-input-chip img {
+    width: 16px; height: 16px;
+    object-fit: contain;
+  }
+
+  .qi-warn-badge {
+    position: absolute;
+    top: 6px; right: 42px;
+    font-size: 10px;
+    background: var(--rust-warn);
+    color: #000;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 1px;
+  }
+  .qi-warn-badge.danger { background: var(--rust-danger); color: #fff; }
+
+  /* ─── ADD CRAFT FORM ─── */
+  .add-craft-form {
+    border: 1px dashed var(--rust-border-light);
+    border-radius: 2px;
+    padding: 10px;
+    background: rgba(200,90,17,0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-row { display: flex; gap: 8px; align-items: flex-end; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 10px; color: var(--rust-text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .form-group.flex1 { flex: 1; }
+
+  .recipe-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    min-height: 40px;
+  }
+  .recipe-preview img {
+    width: 28px; height: 28px;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+  .recipe-preview-info { font-size: 11px; }
+  .recipe-preview-name { color: var(--rust-text-bright); font-size: 13px; }
+  .recipe-preview-time { color: var(--rust-orange); }
+
+  /* ─── TIME MODE TOGGLE ─── */
+  .time-mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .time-mode-btn {
+    flex: 1;
+    background: var(--rust-panel);
+    border: none;
+    color: var(--rust-text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 6px 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .time-mode-btn.active {
+    background: var(--rust-orange);
+    color: #fff;
+  }
+
+  /* ─── STATUS BAR ─── */
+  .status-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 28px;
+    background: #0D0C0B;
+    border-top: 1px solid var(--rust-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    font-size: 11px;
+    color: var(--rust-text-dim);
+    z-index: 100;
+  }
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rust-green); }
+  .status-dot.warn { background: var(--rust-warn); }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--rust-panel);
+    border: 1px solid var(--rust-border-light);
+    border-top: 3px solid var(--rust-orange);
+    width: 480px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 2px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+  }
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rust-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--rust-text-bright);
+  }
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--rust-border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  .recipe-select-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 2px;
+  }
+  .recipe-btn {
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+  }
+  .recipe-btn:hover { border-color: var(--rust-border-light); background: var(--rust-panel); }
+  .recipe-btn.selected { border-color: var(--rust-orange); background: rgba(200,90,17,0.1); }
+  .recipe-btn img { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+  .recipe-btn-name { font-size: 10px; color: var(--rust-text); line-height: 1.2; }
+  .recipe-btn-time { font-size: 10px; color: var(--rust-orange); }
+
+  .search-input {
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border);
+    color: var(--rust-text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 2px;
+    outline: none;
+    width: 100%;
+  }
+  .search-input:focus { border-color: var(--rust-orange); }
+
+  .selected-recipe-info {
+    background: var(--rust-panel2);
+    border: 1px solid var(--rust-border);
+    border-radius: 2px;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+  }
+  .sri-img { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
+  .sri-details { flex: 1; }
+  .sri-name { font-family: 'Oswald', sans-serif; font-size: 16px; color: var(--rust-text-bright); margin-bottom: 4px; }
+  .sri-line { font-size: 12px; color: var(--rust-text-dim); margin-bottom: 2px; }
+  .sri-line span { color: var(--rust-text); }
+  .sri-line .hi { color: var(--rust-orange); }
+
+  .calc-result {
+    background: rgba(200,90,17,0.08);
+    border: 1px solid rgba(200,90,17,0.3);
+    border-radius: 2px;
+    padding: 10px 14px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .calc-result-main { font-family: 'Oswald', sans-serif; font-size: 20px; color: var(--rust-orange); }
+  .calc-result-finish { color: var(--rust-text-dim); font-size: 11px; }
+  .calc-result-warn { color: var(--rust-warn); font-size: 12px; margin-top: 2px; }
+  .calc-result-danger { color: var(--rust-danger); font-size: 12px; margin-top: 2px; }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-tables {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 16px;
+    color: var(--rust-text-dim);
+    text-align: center;
+  }
+  .empty-tables-icon { font-size: 64px; opacity: 0.3; }
+  .empty-tables h3 { font-family: 'Oswald', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--rust-text-dim); }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--rust-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--rust-border-light); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--rust-metal); }
+
+  /* ─── DECORATIVE CORNER ─── */
+  .corner-decor {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: var(--rust-orange);
+    border-style: solid;
+    opacity: 0.4;
+  }
+  .corner-decor.tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
+  .corner-decor.tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
+  .corner-decor.bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+  .corner-decor.br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+  .table-card { position: relative; }
+
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0;
+    color: var(--rust-text-dim);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rust-border);
+  }
+
+  body { padding-bottom: 28px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-icon">⚗</div>
+  <h1>RUST <span>MIXING</span> PLANNER</h1>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <span id="clock">00:00:00</span>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- SKILL LEVEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Skill Level
+      </div>
+      <div class="panel-body">
+        <div class="skill-display">
+          <div class="skill-level-num" id="skillNum">0</div>
+          <div class="skill-reduction">
+            Time reduction<br>
+            <strong id="skillPct">0%</strong>
+          </div>
+        </div>
+        <input type="range" id="skillSlider" min="0" max="10" value="0" step="1">
+        <div class="skill-pips">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+          <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+        </div>
+        <div style="margin-top:10px; font-size:11px; color:var(--rust-text-dim); line-height:1.5;">
+          Each level reduces cooking time by <span style="color:var(--rust-orange)">8.5%</span>. Max 10 levels = 85% reduction.
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVER RESTARTS -->
+    <div class="panel">
+      <div class="panel-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+        Server Restarts
+      </div>
+      <div class="panel-body">
+        <div class="restart-list" id="restartList">
+          <div style="font-size:11px;color:var(--rust-text-dim);text-align:center;padding:8px 0;">No restarts configured</div>
+        </div>
+        <div class="add-restart" style="margin-top:12px;">
+          <input type="time" id="restartTimeInput" style="flex:1;" title="Server restart time">
+          <button class="btn btn-sm" onclick="addRestart()">ADD</button>
+        </div>
+        <div style="margin-top:8px; font-size:11px; color:var(--rust-text-dim);">
+          Enter times in your local timezone. Active crafts will warn if they'll miss a restart.
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="main-toolbar">
+      <h2>Mixing Tables</h2>
+      <button class="btn" onclick="addTable()">+ ADD TABLE</button>
+    </div>
+
+    <div class="tables-grid" id="tablesGrid"></div>
+  </main>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">All timers nominal</span>
+  </div>
+  <div class="status-item" id="nextRestartStatus" style="display:none;">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rust-warn)" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+    <span id="nextRestartText"></span>
+  </div>
+  <div class="status-item" style="margin-left:auto;">
+    <span id="tableCount">0 tables</span> &bull; <span id="craftCount">0 active crafts</span>
+  </div>
+</div>
+
+<!-- ADD CRAFT MODAL -->
+<div class="modal-overlay" id="addCraftModal">
+  <div class="modal">
+    <div class="modal-header">
+      Add Craft
+      <button class="btn-remove" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Time mode -->
+      <div>
+        <div style="font-size:11px;color:var(--rust-text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Time Input Mode</div>
+        <div class="time-mode-toggle">
+          <button class="time-mode-btn active" id="modeRecipe" onclick="setTimeMode('recipe')">From Recipe</button>
+          <button class="time-mode-btn" id="modeManual" onclick="setTimeMode('manual')">Manual Seconds</button>
+        </div>
+      </div>
+
+      <!-- Recipe mode -->
+      <div id="recipeModeDiv">
+        <input class="search-input" id="recipeSearch" placeholder="Search recipes..." oninput="filterRecipes(this.value)">
+        <div class="recipe-select-grid" id="recipeGrid" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Manual mode -->
+      <div id="manualModeDiv" style="display:none;">
+        <div class="form-group">
+          <label>Item Name</label>
+          <input type="text" id="manualName" placeholder="e.g. Gun Powder" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Time per batch (seconds)</label>
+          <input type="number" id="manualSeconds" placeholder="e.g. 1" min="1" style="width:100%;">
+        </div>
+      </div>
+
+      <div class="section-divider">Quantity</div>
+
+      <!-- Selected recipe info -->
+      <div id="selectedRecipeInfo" style="display:none;" class="selected-recipe-info">
+        <img class="sri-img" id="sri-img" src="" alt="">
+        <div class="sri-details">
+          <div class="sri-name" id="sri-name"></div>
+          <div class="sri-line">Base time: <span id="sri-base"></span></div>
+          <div class="sri-line">With skill: <span class="hi" id="sri-skill"></span></div>
+          <div class="sri-line">Output per batch: <span id="sri-out"></span></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group flex1">
+          <label>Number of batches</label>
+          <input type="number" id="batchCount" placeholder="1" min="1" value="1" oninput="updateCalc()">
+        </div>
+        <div class="form-group" style="width:140px;">
+          <label>Queue position</label>
+          <select id="queuePos">
+            <option value="end">End of queue</option>
+            <option value="start">Start of queue</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Calculation result -->
+      <div class="calc-result" id="calcResult" style="display:none;">
+        <div class="calc-result-main" id="calcTime">--</div>
+        <div class="calc-result-finish" id="calcFinish"></div>
+        <div id="calcWarn" style="display:none;"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="confirmAddCraft()">START COOKING</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+const ITEM_IMAGES = {
+  "Gun Powder": "https://files.facepunch.com/wiki/files/b67cc/8de6b0583ee0a1b.png",
+  "Metal Fragments": "https://files.facepunch.com/wiki/files/b67cc/8de6b0632019103.png",
+  "Basic Anti-Rad Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0691abf5bf.png",
+  "Basic Cooling Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b04a7d89b32.png",
+  "Basic Crafting Quality Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b04a9c4c858.png",
+  "Basic Harvesting Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b059733ecb4.png",
+  "Basic Healing Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b05bc2a1649.png",
+  "Basic Max Health Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0627665728.png",
+  "Basic Ore Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b06543dc774.png",
+  "Basic Scrap Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b06d08f2bdb.png",
+  "Basic Warming Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b07a67e515d.png",
+  "Basic Wood Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b07d3af8a99.png",
+  "Red Berry": "https://files.facepunch.com/wiki/files/b67cc/8de6b06945f7746.png",
+  "Green Berry": "https://files.facepunch.com/wiki/files/b67cc/8de6b0579ad7b75.png",
+  "White Berry": "https://files.facepunch.com/wiki/files/b67cc/8de6b07bf05a29f.png",
+  "Blue Berry": "https://files.facepunch.com/wiki/files/b67cc/8de6b0437a644e6.png",
+  "Yellow Berry": "https://files.facepunch.com/wiki/files/b67cc/8de6b07eb311fea.png",
+  "Low Grade Fuel": "https://files.facepunch.com/wiki/files/b67cc/8de6b061b27ee29.png",
+  "Sulfur": "https://files.facepunch.com/wiki/files/b67cc/8de6b0751338d1d.png",
+  "Charcoal": "https://files.facepunch.com/wiki/files/b67cc/8de6b0474fcf3b1.png",
+  "Cloth": "https://files.facepunch.com/wiki/files/b67cc/8de6b04915a8925.png",
+  "Animal Fat": "https://files.facepunch.com/wiki/files/b67cc/8de6b05158c4f74.png",
+  "Advanced Anti-Rad Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0690cd8202.png",
+  "Advanced Cooling Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b03d93bab68.png",
+  "Advanced Crafting Quality Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b03da2e6f5f.png",
+  "Advanced Harvesting Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b03dc45e07d.png",
+  "Advanced Healing Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b05bb46fe8e.png",
+  "Advanced Max Health Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b062680a36b.png",
+  "Advanced Ore Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0652f918eb.png",
+  "Advanced Scrap Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b06cfc3f2a9.png",
+  "Advanced Warming Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b03db232ad1.png",
+  "Advanced Wood Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b07d2e43797.png",
+  "5.56 Rifle Ammo": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e9e9c722.png",
+  "Explosives": "https://files.facepunch.com/wiki/files/b67cc/8de6b0513b11271.png",
+  "HV 5.56 Rifle Ammo": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e8182022.png",
+  "HV Pistol Ammo": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e52a8e00.png",
+  "Incendiary 5.56 Rifle Ammo": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e907f707.png",
+  "Incendiary Pistol Bullet": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e41db967.png",
+  "Pistol Bullet": "https://files.facepunch.com/wiki/files/b67cc/8de6b03e61fd382.png",
+  "Pure Anti-Rad Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0692923c44.png",
+  "Pure Cooling Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b0689dfb9dc.png",
+  "Pure Crafting Quality Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b068abbbbff.png",
+  "Pure Harvesting Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b068b8e1b20.png",
+  "Pure Healing Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b05bd3557ec.png",
+  "Pure Max Health Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b062836b018.png",
+  "Pure Ore Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b065530a986.png",
+  "Pure Scrap Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b06d1652666.png",
+  "Pure Warming Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b068c6cc209.png",
+  "Pure Wood Tea": "https://files.facepunch.com/wiki/files/b67cc/8de6b07d4742763.png"
+};
+
+// Helper to consolidate duplicate inputs
+function consolidateInputs(inputs) {
+  const map = {};
+  inputs.forEach(i => {
+    if (map[i.item]) map[i.item] += i.qty;
+    else map[i.item] = i.qty;
+  });
+  return Object.entries(map).map(([item, qty]) => ({ item, qty }));
+}
+
+const RECIPES = [
+  { id: "556ammo", output: "5.56 Rifle Ammo", outputQty: 3, timeSeconds: 1,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:5},{item:"Metal Fragments",qty:5},{item:"Metal Fragments",qty:5}]) },
+  { id: "gunpowder", output: "Gun Powder", outputQty: 10, timeSeconds: 1,
+    inputs: consolidateInputs([{item:"Sulfur",qty:10},{item:"Charcoal",qty:10},{item:"Sulfur",qty:10},{item:"Charcoal",qty:10}]) },
+  { id: "explosives", output: "Explosives", outputQty: 1, timeSeconds: 4,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:50},{item:"Low Grade Fuel",qty:3},{item:"Sulfur",qty:10},{item:"Metal Fragments",qty:10}]) },
+  { id: "pistolbullet", output: "Pistol Bullet", outputQty: 4, timeSeconds: 1,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:5},{item:"Metal Fragments",qty:10}]) },
+  { id: "hv556", output: "HV 5.56 Rifle Ammo", outputQty: 3, timeSeconds: 3,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:5},{item:"Gun Powder",qty:5},{item:"Metal Fragments",qty:5},{item:"Metal Fragments",qty:5}]) },
+  { id: "hvpistol", output: "HV Pistol Ammo", outputQty: 4, timeSeconds: 3,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:5},{item:"Gun Powder",qty:5},{item:"Metal Fragments",qty:10}]) },
+  { id: "inc556", output: "Incendiary 5.56 Rifle Ammo", outputQty: 2, timeSeconds: 3,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:10},{item:"Metal Fragments",qty:5},{item:"Metal Fragments",qty:5},{item:"Sulfur",qty:5}]) },
+  { id: "incpistol", output: "Incendiary Pistol Bullet", outputQty: 3, timeSeconds: 3,
+    inputs: consolidateInputs([{item:"Gun Powder",qty:10},{item:"Metal Fragments",qty:10},{item:"Sulfur",qty:5}]) },
+  { id: "lowgrade", output: "Low Grade Fuel", outputQty: 4, timeSeconds: 1,
+    inputs: [{item:"Animal Fat",qty:3}] },
+  { id: "basic_antirad", output: "Basic Anti-Rad Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Red Berry",qty:1}] },
+  { id: "basic_cooling", output: "Basic Cooling Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"White Berry",qty:1}] },
+  { id: "basic_crafting", output: "Basic Crafting Quality Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Green Berry",qty:1}] },
+  { id: "basic_harvest", output: "Basic Harvesting Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Yellow Berry",qty:1}] },
+  { id: "basic_healing", output: "Basic Healing Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Red Berry",qty:1}] },
+  { id: "basic_maxhp", output: "Basic Max Health Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Red Berry",qty:1}] },
+  { id: "basic_ore", output: "Basic Ore Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Yellow Berry",qty:1}] },
+  { id: "basic_scrap", output: "Basic Scrap Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Yellow Berry",qty:1}] },
+  { id: "basic_warm", output: "Basic Warming Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"White Berry",qty:1}] },
+  { id: "basic_wood", output: "Basic Wood Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Red Berry",qty:1}] },
+  { id: "adv_antirad", output: "Advanced Anti-Rad Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Anti-Rad Tea",qty:1}] },
+  { id: "adv_cooling", output: "Advanced Cooling Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Cooling Tea",qty:1}] },
+  { id: "adv_crafting", output: "Advanced Crafting Quality Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Crafting Quality Tea",qty:1}] },
+  { id: "adv_harvest", output: "Advanced Harvesting Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Harvesting Tea",qty:1}] },
+  { id: "adv_healing", output: "Advanced Healing Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Healing Tea",qty:1}] },
+  { id: "adv_maxhp", output: "Advanced Max Health Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Max Health Tea",qty:1}] },
+  { id: "adv_ore", output: "Advanced Ore Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Ore Tea",qty:1}] },
+  { id: "adv_scrap", output: "Advanced Scrap Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Scrap Tea",qty:1}] },
+  { id: "adv_warm", output: "Advanced Warming Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Warming Tea",qty:1}] },
+  { id: "adv_wood", output: "Advanced Wood Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Basic Wood Tea",qty:1}] },
+  { id: "pure_antirad", output: "Pure Anti-Rad Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Anti-Rad Tea",qty:1}] },
+  { id: "pure_cooling", output: "Pure Cooling Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Cooling Tea",qty:1}] },
+  { id: "pure_crafting", output: "Pure Crafting Quality Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Crafting Quality Tea",qty:1}] },
+  { id: "pure_harvest", output: "Pure Harvesting Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Harvesting Tea",qty:1}] },
+  { id: "pure_healing", output: "Pure Healing Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Healing Tea",qty:1}] },
+  { id: "pure_maxhp", output: "Pure Max Health Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Max Health Tea",qty:1}] },
+  { id: "pure_ore", output: "Pure Ore Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Ore Tea",qty:1}] },
+  { id: "pure_scrap", output: "Pure Scrap Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Scrap Tea",qty:1}] },
+  { id: "pure_warm", output: "Pure Warming Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Warming Tea",qty:1}] },
+  { id: "pure_wood", output: "Pure Wood Tea", outputQty: 1, timeSeconds: 5, inputs: [{item:"Advanced Wood Tea",qty:1}] },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+let state = {
+  skillLevel: 0,
+  restarts: [],      // Array of { id, timeStr } — HH:MM strings
+  tables: [],        // Array of { id, name, queue: [] }
+  nextTableId: 1,
+  nextCraftId: 1,
+};
+
+let modalContext = null; // { tableId }
+let selectedRecipeId = null;
+let timeMode = 'recipe'; // 'recipe' | 'manual'
+
+// ═══════════════════════════════════════════════════════════════
+// SKILL
+// ═══════════════════════════════════════════════════════════════
+
+function getSkillMultiplier() {
+  return 1 - (state.skillLevel * 0.085);
+}
+
+function getEffectiveSeconds(baseSeconds) {
+  return Math.max(1, Math.round(baseSeconds * getSkillMultiplier()));
+}
+
+document.getElementById('skillSlider').addEventListener('input', function() {
+  state.skillLevel = parseInt(this.value);
+  document.getElementById('skillNum').textContent = state.skillLevel;
+  const pct = Math.round(state.skillLevel * 8.5);
+  document.getElementById('skillPct').textContent = pct + '%';
+  updateCalc();
+  renderAllQueues();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// RESTARTS
+// ═══════════════════════════════════════════════════════════════
+
+function addRestart() {
+  const input = document.getElementById('restartTimeInput');
+  const val = input.value;
+  if (!val) return;
+  state.restarts.push({ id: Date.now(), timeStr: val });
+  state.restarts.sort((a, b) => a.timeStr.localeCompare(b.timeStr));
+  input.value = '';
+  renderRestarts();
+}
+
+function removeRestart(id) {
+  state.restarts = state.restarts.filter(r => r.id !== id);
+  renderRestarts();
+}
+
+function getNextRestartTime(after = new Date()) {
+  if (state.restarts.length === 0) return null;
+  const now = after;
+  const candidates = state.restarts.map(r => {
+    const [h, m] = r.timeStr.split(':').map(Number);
+    let t = new Date(now);
+    t.setHours(h, m, 0, 0);
+    if (t <= now) t.setDate(t.getDate() + 1);
+    return { restart: r, time: t };
+  });
+  candidates.sort((a, b) => a.time - b.time);
+  return candidates[0];
+}
+
+function renderRestarts() {
+  const el = document.getElementById('restartList');
+  if (state.restarts.length === 0) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--rust-text-dim);text-align:center;padding:8px 0;">No restarts configured</div>';
+    return;
+  }
+  el.innerHTML = state.restarts.map(r => {
+    return `<div class="restart-item">
+      <div class="restart-dot"></div>
+      <div class="restart-time-label">${r.timeStr}</div>
+      <div class="restart-countdown" id="rc-${r.id}">--</div>
+      <button class="btn-remove" onclick="removeRestart(${r.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABLES
+// ═══════════════════════════════════════════════════════════════
+
+function addTable() {
+  const id = state.nextTableId++;
+  state.tables.push({ id, name: `Mixing Table #${id}`, queue: [] });
+  renderTables();
+}
+
+function removeTable(id) {
+  if (!confirm('Remove this mixing table and all its queued crafts?')) return;
+  state.tables = state.tables.filter(t => t.id !== id);
+  renderTables();
+}
+
+function updateTableName(id, name) {
+  const t = state.tables.find(t => t.id === id);
+  if (t) t.name = name;
+}
+
+function openAddCraft(tableId) {
+  modalContext = { tableId };
+  selectedRecipeId = null;
+  document.getElementById('addCraftModal').classList.add('open');
+  document.getElementById('batchCount').value = 1;
+  document.getElementById('calcResult').style.display = 'none';
+  document.getElementById('selectedRecipeInfo').style.display = 'none';
+  document.getElementById('recipeSearch').value = '';
+  renderRecipeGrid('');
+  setTimeMode('recipe');
+}
+
+function closeModal() {
+  document.getElementById('addCraftModal').classList.remove('open');
+  modalContext = null;
+}
+
+function setTimeMode(mode) {
+  timeMode = mode;
+  document.getElementById('modeRecipe').classList.toggle('active', mode === 'recipe');
+  document.getElementById('modeManual').classList.toggle('active', mode === 'manual');
+  document.getElementById('recipeModeDiv').style.display = mode === 'recipe' ? '' : 'none';
+  document.getElementById('manualModeDiv').style.display = mode === 'manual' ? '' : 'none';
+  document.getElementById('selectedRecipeInfo').style.display = 'none';
+  selectedRecipeId = null;
+  updateCalc();
+}
+
+function selectRecipe(id) {
+  selectedRecipeId = id;
+  document.querySelectorAll('.recipe-btn').forEach(b => b.classList.remove('selected'));
+  const btn = document.querySelector(`.recipe-btn[data-id="${id}"]`);
+  if (btn) btn.classList.add('selected');
+
+  const recipe = RECIPES.find(r => r.id === id);
+  if (recipe) {
+    const img = ITEM_IMAGES[recipe.output] || '';
+    document.getElementById('sri-img').src = img;
+    document.getElementById('sri-name').textContent = recipe.output;
+    document.getElementById('sri-base').textContent = fmtSeconds(recipe.timeSeconds) + '/batch';
+    document.getElementById('sri-out').textContent = `${recipe.outputQty}x ${recipe.output}`;
+    document.getElementById('selectedRecipeInfo').style.display = 'flex';
+    updateCalc();
+  }
+}
+
+function filterRecipes(q) {
+  renderRecipeGrid(q);
+}
+
+function renderRecipeGrid(query) {
+  const filtered = query
+    ? RECIPES.filter(r => r.output.toLowerCase().includes(query.toLowerCase()))
+    : RECIPES;
+
+  document.getElementById('recipeGrid').innerHTML = filtered.map(r => {
+    const img = ITEM_IMAGES[r.output] || '';
+    const effTime = getEffectiveSeconds(r.timeSeconds);
+    return `<button class="recipe-btn ${selectedRecipeId === r.id ? 'selected' : ''}"
+      data-id="${r.id}" onclick="selectRecipe('${r.id}')">
+      ${img ? `<img src="${img}" alt="${r.output}" loading="lazy">` : `<div style="font-size:24px;">⚗</div>`}
+      <div class="recipe-btn-name">${r.output}</div>
+      <div class="recipe-btn-time">${effTime}s/batch</div>
+    </button>`;
+  }).join('');
+}
+
+function updateCalc() {
+  const calcEl = document.getElementById('calcResult');
+  let totalSeconds = 0;
+  let name = '';
+
+  if (timeMode === 'recipe') {
+    if (!selectedRecipeId) { calcEl.style.display = 'none'; return; }
+    const recipe = RECIPES.find(r => r.id === selectedRecipeId);
+    if (!recipe) return;
+    const effTime = getEffectiveSeconds(recipe.timeSeconds);
+    const batches = parseInt(document.getElementById('batchCount').value) || 1;
+    totalSeconds = effTime * batches;
+    name = recipe.output;
+    document.getElementById('sri-skill').textContent = fmtSeconds(effTime) + '/batch';
+  } else {
+    const secs = parseInt(document.getElementById('manualSeconds').value) || 0;
+    const batches = parseInt(document.getElementById('batchCount').value) || 1;
+    if (!secs) { calcEl.style.display = 'none'; return; }
+    totalSeconds = secs * batches;
+    name = document.getElementById('manualName').value || 'Item';
+  }
+
+  // Figure out queue time before this craft starts
+  const table = state.tables.find(t => t.id === modalContext?.tableId);
+  const queuePos = document.getElementById('queuePos').value;
+  let queueOffset = 0;
+  if (table && queuePos === 'end') {
+    table.queue.forEach(c => {
+      const remaining = Math.max(0, c.endTime - Date.now());
+      queueOffset = Math.max(queueOffset, remaining / 1000);
+    });
+  }
+
+  const startOffset = queuePos === 'end' ? queueOffset : 0;
+  const finishAt = new Date(Date.now() + (startOffset + totalSeconds) * 1000);
+
+  calcEl.style.display = '';
+  document.getElementById('calcTime').textContent = fmtDuration(totalSeconds);
+  document.getElementById('calcFinish').textContent = `Finishes at: ${fmtTime(finishAt)}`;
+
+  // Check restart conflicts
+  const warnEl = document.getElementById('calcWarn');
+  const nextRestart = getNextRestartTime(new Date(Date.now() + startOffset * 1000));
+  if (nextRestart && finishAt > nextRestart.time) {
+    const lostTime = (finishAt - nextRestart.time) / 1000;
+    warnEl.style.display = '';
+    warnEl.className = 'calc-result-danger';
+    warnEl.textContent = `⚠ Will NOT finish before ${nextRestart.restart.timeStr} restart! ${fmtDuration(lostTime)} will be lost.`;
+  } else if (nextRestart) {
+    const margin = (nextRestart.time - finishAt) / 1000;
+    if (margin < 300) {
+      warnEl.style.display = '';
+      warnEl.className = 'calc-result-warn';
+      warnEl.textContent = `⚡ Close call — only ${fmtDuration(margin)} margin before ${nextRestart.restart.timeStr} restart.`;
+    } else {
+      warnEl.style.display = 'none';
+    }
+  } else {
+    warnEl.style.display = 'none';
+  }
+}
+
+function confirmAddCraft() {
+  const table = state.tables.find(t => t.id === modalContext?.tableId);
+  if (!table) return;
+
+  let baseSeconds, name, imgUrl, recipeRef = null, inputs = [];
+
+  if (timeMode === 'recipe') {
+    if (!selectedRecipeId) { alert('Please select a recipe.'); return; }
+    const recipe = RECIPES.find(r => r.id === selectedRecipeId);
+    baseSeconds = getEffectiveSeconds(recipe.timeSeconds);
+    name = recipe.output;
+    imgUrl = ITEM_IMAGES[recipe.output] || '';
+    recipeRef = recipe;
+    inputs = recipe.inputs;
+  } else {
+    baseSeconds = parseInt(document.getElementById('manualSeconds').value);
+    name = document.getElementById('manualName').value || 'Unknown';
+    imgUrl = ITEM_IMAGES[name] || '';
+    if (!baseSeconds || baseSeconds < 1) { alert('Enter a valid time in seconds.'); return; }
+  }
+
+  const batches = Math.max(1, parseInt(document.getElementById('batchCount').value) || 1);
+  const totalSeconds = baseSeconds * batches;
+  const queuePos = document.getElementById('queuePos').value;
+
+  // Calculate start time based on queue
+  let startTime;
+  if (queuePos === 'start' || table.queue.length === 0) {
+    startTime = Date.now();
+  } else {
+    startTime = Math.max(...table.queue.map(c => c.endTime));
+  }
+  const endTime = startTime + totalSeconds * 1000;
+
+  const craft = {
+    id: state.nextCraftId++,
+    name, imgUrl, inputs,
+    batches, baseSeconds, totalSeconds,
+    startTime, endTime,
+    recipeId: selectedRecipeId
+  };
+
+  if (queuePos === 'start') {
+    // Shift existing queue forward
+    const shift = totalSeconds * 1000;
+    table.queue.forEach(c => {
+      c.startTime += shift;
+      c.endTime += shift;
+    });
+    table.queue.unshift(craft);
+  } else {
+    table.queue.push(craft);
+  }
+
+  closeModal();
+  renderTables();
+}
+
+function removeCraft(tableId, craftId) {
+  const table = state.tables.find(t => t.id === tableId);
+  if (!table) return;
+  const idx = table.queue.findIndex(c => c.id === craftId);
+  if (idx === -1) return;
+  const removed = table.queue[idx];
+  table.queue.splice(idx, 1);
+  // Re-chain subsequent items
+  if (idx < table.queue.length) {
+    const shiftBack = removed.endTime - removed.startTime;
+    for (let i = idx; i < table.queue.length; i++) {
+      table.queue[i].startTime -= shiftBack;
+      table.queue[i].endTime -= shiftBack;
+    }
+  }
+  renderTables();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════
+
+function renderTables() {
+  const grid = document.getElementById('tablesGrid');
+
+  if (state.tables.length === 0) {
+    grid.innerHTML = `<div class="empty-tables" id="emptyState">
+      <div class="empty-tables-icon">⚗</div>
+      <h3>No Mixing Tables</h3>
+      <p style="font-size:12px;">Click "ADD TABLE" to start tracking your mixing tables.</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = state.tables.map(t => renderTableCard(t)).join('');
+  document.getElementById('tableCount').textContent = `${state.tables.length} table${state.tables.length !== 1 ? 's' : ''}`;
+}
+
+function renderTableCard(table) {
+  const queueHtml = table.queue.length === 0
+    ? `<div class="queue-empty">Queue empty — add a craft to start cooking</div>`
+    : table.queue.map(c => renderCraftItem(table.id, c)).join('');
+
+  return `<div class="table-card" id="table-${table.id}">
+    <div class="corner-decor tl"></div>
+    <div class="corner-decor tr"></div>
+    <div class="corner-decor bl"></div>
+    <div class="corner-decor br"></div>
+    <div class="table-card-header">
+      <div class="table-icon">⚗</div>
+      <input class="table-name-input" value="${escHtml(table.name)}"
+        onchange="updateTableName(${table.id}, this.value)"
+        onblur="updateTableName(${table.id}, this.value)">
+      <button class="btn btn-sm btn-danger" onclick="removeTable(${table.id})">✕</button>
+    </div>
+    <div class="table-card-body">
+      <div id="queue-${table.id}">${queueHtml}</div>
+      <button class="btn btn-outline" style="width:100%;margin-top:4px;"
+        onclick="openAddCraft(${table.id})">+ ADD CRAFT</button>
+    </div>
+  </div>`;
+}
+
+function renderCraftItem(tableId, craft) {
+  const now = Date.now();
+  const remaining = Math.max(0, craft.endTime - now);
+  const elapsed = Math.max(0, now - craft.startTime);
+  const total = craft.endTime - craft.startTime;
+  const progress = total > 0 ? Math.min(100, (elapsed / total) * 100) : 100;
+  const done = remaining === 0;
+
+  const nextRestart = getNextRestartTime();
+  let warnClass = '';
+  let warnBadge = '';
+  if (!done && nextRestart && craft.endTime > nextRestart.time.getTime()) {
+    warnClass = 'danger';
+    warnBadge = `<div class="qi-warn-badge danger">MISSES RESTART</div>`;
+  } else if (!done && nextRestart) {
+    const margin = (nextRestart.time.getTime() - craft.endTime) / 1000;
+    if (margin < 300) {
+      warnClass = 'warning';
+      warnBadge = `<div class="qi-warn-badge">CLOSE CALL</div>`;
+    }
+  }
+
+  const countdownClass = done ? 'done' : (warnClass === 'danger' ? 'critical' : '');
+  const progressClass = done ? 'done' : (warnClass === 'danger' ? 'critical' : '');
+
+  const inputChips = craft.inputs.map(inp => {
+    const imgUrl = ITEM_IMAGES[inp.item] || '';
+    return `<div class="qi-input-chip">
+      ${imgUrl ? `<img src="${imgUrl}" alt="${escHtml(inp.item)}">` : ''}
+      <span>${escHtml(inp.item)} ×${inp.qty * craft.batches}</span>
+    </div>`;
+  }).join('');
+
+  const imgEl = craft.imgUrl
+    ? `<img class="qi-img" src="${craft.imgUrl}" alt="${escHtml(craft.name)}">`
+    : `<div class="qi-img-placeholder">⚗</div>`;
+
+  return `<div class="queue-item ${warnClass}" id="craft-${craft.id}">
+    ${warnBadge}
+    <div class="queue-item-header">
+      ${imgEl}
+      <div class="qi-info">
+        <div class="qi-name">${escHtml(craft.name)}</div>
+        <div class="qi-meta">${craft.batches}x batch${craft.batches !== 1 ? 'es' : ''} · ${fmtDuration(craft.totalSeconds)} total</div>
+      </div>
+      <div class="qi-timer">
+        <div class="qi-countdown ${countdownClass}" id="cd-${craft.id}">
+          ${done ? 'DONE' : fmtDuration(remaining / 1000)}
+        </div>
+        <div class="qi-finish">${done ? 'Completed' : fmtTime(new Date(craft.endTime))}</div>
+      </div>
+      <button class="btn-remove" style="margin-left:8px;" onclick="removeCraft(${tableId},${craft.id})" title="Remove">✕</button>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill ${progressClass}" id="prog-${craft.id}" style="width:${progress}%"></div>
+    </div>
+    ${craft.inputs.length > 0 ? `<div class="qi-inputs">${inputChips}</div>` : ''}
+  </div>`;
+}
+
+function renderAllQueues() {
+  state.tables.forEach(table => {
+    const queueEl = document.getElementById(`queue-${table.id}`);
+    if (!queueEl) return;
+    if (table.queue.length === 0) {
+      queueEl.innerHTML = `<div class="queue-empty">Queue empty — add a craft to start cooking</div>`;
+    } else {
+      queueEl.innerHTML = table.queue.map(c => renderCraftItem(table.id, c)).join('');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TICK — update timers every second
+// ═══════════════════════════════════════════════════════════════
+
+let warningCount = 0;
+
+function tick() {
+  const now = Date.now();
+
+  // Clock
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+
+  // Restart countdowns
+  state.restarts.forEach(r => {
+    const el = document.getElementById(`rc-${r.id}`);
+    if (!el) return;
+    const [h, m] = r.timeStr.split(':').map(Number);
+    let t = new Date();
+    t.setHours(h, m, 0, 0);
+    if (t <= new Date()) t.setDate(t.getDate() + 1);
+    el.textContent = fmtDuration((t - now) / 1000);
+  });
+
+  // Craft countdowns
+  let activeCrafts = 0;
+  let hasWarning = false;
+
+  state.tables.forEach(table => {
+    table.queue.forEach(craft => {
+      const remaining = Math.max(0, craft.endTime - now);
+      const elapsed = Math.max(0, now - craft.startTime);
+      const total = craft.endTime - craft.startTime;
+      const progress = total > 0 ? Math.min(100, (elapsed / total) * 100) : 100;
+      const done = remaining === 0;
+
+      if (!done) activeCrafts++;
+
+      const cdEl = document.getElementById(`cd-${craft.id}`);
+      const pgEl = document.getElementById(`prog-${craft.id}`);
+      const itemEl = document.getElementById(`craft-${craft.id}`);
+
+      const nextRestart = getNextRestartTime();
+      let warnClass = '';
+      if (!done && nextRestart && craft.endTime > nextRestart.time.getTime()) {
+        warnClass = 'danger';
+        hasWarning = true;
+      } else if (!done && nextRestart) {
+        const margin = (nextRestart.time.getTime() - craft.endTime) / 1000;
+        if (margin < 300) warnClass = 'warning';
+      }
+
+      if (cdEl) {
+        cdEl.textContent = done ? 'DONE ✓' : fmtDuration(remaining / 1000);
+        cdEl.className = 'qi-countdown ' + (done ? 'done' : warnClass === 'danger' ? 'critical' : '');
+      }
+      if (pgEl) {
+        pgEl.style.width = progress + '%';
+        pgEl.className = 'progress-fill ' + (done ? 'done' : warnClass === 'danger' ? 'critical' : '');
+      }
+      if (itemEl) {
+        itemEl.className = 'queue-item ' + warnClass;
+      }
+    });
+  });
+
+  // Status bar
+  document.getElementById('craftCount').textContent = `${activeCrafts} active craft${activeCrafts !== 1 ? 's' : ''}`;
+
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  if (hasWarning) {
+    statusDot.className = 'status-dot warn';
+    statusText.textContent = 'WARNING: Some crafts will miss server restart!';
+  } else {
+    statusDot.className = 'status-dot';
+    statusText.textContent = activeCrafts > 0 ? `${activeCrafts} craft${activeCrafts !== 1 ? 's' : ''} in progress` : 'All timers nominal';
+  }
+
+  // Next restart in status bar
+  const nextR = getNextRestartTime();
+  const nextREl = document.getElementById('nextRestartStatus');
+  if (nextR) {
+    nextREl.style.display = 'flex';
+    document.getElementById('nextRestartText').textContent =
+      `Next restart: ${nextR.restart.timeStr} (in ${fmtDuration((nextR.time - now) / 1000)})`;
+  } else {
+    nextREl.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function fmtDuration(totalSec) {
+  totalSec = Math.max(0, Math.round(totalSec));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+  if (m > 0) return `${m}m ${s.toString().padStart(2,'0')}s`;
+  return `${s}s`;
+}
+
+function fmtSeconds(s) {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
+}
+
+function fmtTime(date) {
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+renderRestarts();
+renderTables();
+setInterval(tick, 1000);
+tick();
+
+// Close modal on overlay click
+document.getElementById('addCraftModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Recalc when queue pos changes
+document.getElementById('queuePos').addEventListener('change', updateCalc);
+document.getElementById('manualSeconds').addEventListener('input', updateCalc);
+document.getElementById('manualName').addEventListener('input', updateCalc);
+document.getElementById('batchCount').addEventListener('input', updateCalc);
+</script>
+</body>
+</html>
